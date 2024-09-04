@@ -1,6 +1,6 @@
-# github-action-template
+# unity-uwp-builder
 
-A GitHub Actions template repository for TypeScript based Actions.
+A GitHub Action to build Unity exported UWP projects.
 
 ## How to use
 
@@ -8,7 +8,7 @@ A GitHub Actions template repository for TypeScript based Actions.
 
 ```yaml
 steps:
-  - uses: RageAgainstThePixel/github-action-template@v1
+  - uses: RageAgainstThePixel/unity-uwp-builder@v1
 ```
 
 ### inputs

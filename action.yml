@@ -1,4 +1,4 @@
-name: github-action-template
+name: unity-uwp-builder
 description: 'A GitHub Actions template repository for JavaScript based Actions'
 # inputs:
 # outputs:
