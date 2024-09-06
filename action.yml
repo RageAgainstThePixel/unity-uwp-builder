@@ -1,7 +1,21 @@
 name: unity-uwp-builder
 description: 'A GitHub Actions template repository for JavaScript based Actions'
-# inputs:
-# outputs:
+branding:
+  icon: command
+  color: blue
+inputs:
+  project-path:
+    description: The directory that contains the exported visual studio project from Unity.
+    required: true
+  configuration:
+    description: The configuration to use when building the visual studio project. Defaults to `Release`.
+    required: false
+    default: 'Release'
+outputs:
+  executable:
+    description: The path to the generated appx executable.
+  export-path:
+    description: The path to the export directory.
 runs:
   using: 'node20'
   main: 'dist/index.js'

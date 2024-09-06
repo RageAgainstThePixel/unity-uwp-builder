@@ -26811,16 +26811,9 @@ var exports = __webpack_exports__;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __nccwpck_require__(2186);
-const IS_POST = !!core.getState('isPost');
 const main = async () => {
     try {
-        if (!IS_POST) {
-            core.info('Hello World!');
-            core.saveState('isPost', true);
-        }
-        else {
-            core.info('Hello World! (post)');
-        }
+        core.info('Hello World!');
     }
     catch (error) {
         core.setFailed(error);

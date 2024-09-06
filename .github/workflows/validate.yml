@@ -59,6 +59,8 @@ jobs:
         id: uwp-build
 
       - name: print outputs
-        shell: pwsh
+        shell: bash
         run: |
-          Write-Host "Export path: ${{ steps.uwp-build.outputs.export-path }}"
+          echo "Archive: ${{ steps.uwp-build.outputs.executable }}"
+          echo "Export path: ${{ steps.uwp-build.outputs.export-path }}"
+          ls -al ${{ steps.uwp-build.outputs.export-path }}
