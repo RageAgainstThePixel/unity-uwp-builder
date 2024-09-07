@@ -13,6 +13,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   validate:
+    env:
+      UNITY_PROJECT_PATH: '' # set by unity-setup action
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -54,9 +56,18 @@ jobs:
           log-name: '${{ matrix.build-target }}-Build'
           args: '-quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.UnityPlayerBuildTools.StartCommandLineBuild -export -bundleIdentifier com.rageagainstthepixel.utilities.encoder.wav'
 
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: microsoft/setup-msbuild@v2
+
         # builds visual studio project for UWP and packages it as an appx
       - uses: ./ # RageAgainstThePixel/unity-uwp-builder
         id: uwp-build
+        if: ${{ matrix.build-target == 'WSAPlayer' }}
+        with:
+          project-path: ${{ env.UNITY_PROJECT_PATH }}/Builds/${{ matrix.build-target }}
+          configuration: 'Release'
 
       - name: print outputs
         shell: bash

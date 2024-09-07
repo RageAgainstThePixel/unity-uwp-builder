@@ -11,6 +11,10 @@ inputs:
     description: The configuration to use when building the visual studio project. Defaults to `Release`.
     required: false
     default: 'Release'
+  additional-args:
+    description: Additional arguments to pass to the msbuild command.
+    required: false
+    default: ''
 outputs:
   executable:
     description: The path to the generated appx executable.
