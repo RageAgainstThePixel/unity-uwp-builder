@@ -30555,15 +30555,21 @@ const main = async () => {
         const globber = await glob.create(path.join(projectPath, `**/*.sln`));
         const files = await globber.glob();
         if (files.length === 0) {
-            throw new Error(`No solution or project file found.`);
+            throw new Error(`No solution file found.`);
         }
         const buildPath = files[0];
         core.info(`Building ${buildPath}`);
         const configuration = core.getInput(`configuration`, { required: true });
-        const buildArgs = [`/t:Build`, `/p:Configuration=${configuration}`];
+        const buildArgs = [
+            `/t:Build`,
+            `/p:Configuration=${configuration}`
+        ];
         const additionalArgs = core.getInput(`additional-args`);
         if (additionalArgs) {
             buildArgs.push(...additionalArgs.split(` `));
+        }
+        else {
+            buildArgs.push(`/p:AppxBundlePlatforms="x64|ARM64"`, `/p:AppxBundle=Always`, `/p:UapAppxPackageBuildMode=StoreUpload`);
         }
         await exec.exec(`msbuild`, [buildPath, ...buildArgs]);
         const exportGlobber = await glob.create(path.join(path.dirname(buildPath), `**/AppPackages/**/*.appx`));
@@ -30572,8 +30578,10 @@ const main = async () => {
             throw new Error(`No appx file found.`);
         }
         const executable = exportFiles[0];
+        core.info(`executable: "${executable}"`);
         core.setOutput(`executable`, executable);
         const exportPath = path.dirname(executable);
+        core.info(`export-path: "${exportPath}"`);
         core.setOutput(`export-path`, exportPath);
     }
     catch (error) {
