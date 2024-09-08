@@ -30569,7 +30569,7 @@ const main = async () => {
             buildArgs.push(...additionalArgs.split(` `));
         }
         else {
-            buildArgs.push(`/p:AppxBundlePlatforms="x64|ARM64"`, `/p:AppxBundle=Always`, `/p:UapAppxPackageBuildMode=StoreUpload`);
+            buildArgs.push(`/p:AppxBundlePlatforms="x64|ARM64"`, `/p:AppxBundle=Always`, `/p:BuildAppxUploadPackageForUap=true`, `/p:UapAppxPackageBuildMode=StoreUpload`);
         }
         await exec.exec(`msbuild`, [buildPath, ...buildArgs]);
         const exportGlobber = await glob.create(path.join(path.dirname(buildPath), `**/AppPackages/**/*.appx`));
