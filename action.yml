@@ -8,9 +8,13 @@ inputs:
     description: The directory that contains the exported visual studio project from Unity.
     required: true
   configuration:
-    description: The configuration to use when building the visual studio project. Defaults to `Release`.
+    description: The configuration to use when building the visual studio project. Defaults to `Master`.
     required: false
-    default: 'Release'
+    default: 'Master'
+  architecture:
+    description: 'The architecture to use when building the visual studio project. Can be: `x86`, `x64`, `ARM`, or `ARM64`. Defaults to `ARM64`.'
+    required: false
+    default: 'ARM64'
   additional-args:
     description: Additional arguments to pass to the msbuild command.
     required: false

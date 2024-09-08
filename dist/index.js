@@ -30564,18 +30564,24 @@ const main = async () => {
             `/t:Build`,
             `/p:Configuration=${configuration}`
         ];
-        const additionalArgs = core.getInput(`additional-args`);
-        if (additionalArgs) {
-            buildArgs.push(...additionalArgs.split(` `));
+        const architecture = core.getInput(`architecture`);
+        if (architecture) {
+            core.info(`architecture: "${architecture}"`);
+            buildArgs.push(`/p:Platform=${architecture}`);
         }
         else {
-            buildArgs.push(`/p:AppxBundlePlatforms=x64|ARM64`, `/p:AppxBundle=Always`, `/p:BuildAppxUploadPackageForUap=true`, `/p:UapAppxPackageBuildMode=StoreUpload`);
+            buildArgs.push(`/p:Platform=x64|ARM64`);
+        }
+        const additionalArgs = core.getInput(`additional-args`);
+        if (additionalArgs) {
+            core.info(`additional-args: "${additionalArgs}"`);
+            buildArgs.push(...additionalArgs.split(` `));
         }
         await exec.exec(`msbuild`, [buildPath, ...buildArgs]);
-        const exportGlobber = await glob.create(path.join(path.dirname(buildPath), `**/AppPackages/**/*.appx`));
+        const exportGlobber = await glob.create(path.join(path.dirname(buildPath), `**/AppPackages/**/*.msix`));
         const exportFiles = await exportGlobber.glob();
         if (exportFiles.length === 0) {
-            throw new Error(`No appx file found.`);
+            throw new Error(`No msix file found.`);
         }
         const executable = exportFiles[0];
         core.info(`executable: "${executable}"`);
