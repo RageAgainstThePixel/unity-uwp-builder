@@ -74,4 +74,4 @@ jobs:
         run: |
           echo "Executable: ${{ steps.uwp-build.outputs.executable }}"
           echo "Export path: ${{ steps.uwp-build.outputs.export-path }}"
-          ls -al ${{ steps.uwp-build.outputs.export-path }}
+          ls -al ${{ steps.uwp-build.outputs.export-path//\\// }}
