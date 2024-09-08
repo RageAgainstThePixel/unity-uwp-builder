@@ -1,5 +1,5 @@
 name: unity-uwp-builder
-description: 'A GitHub Actions template repository for JavaScript based Actions'
+description: A GitHub Action to build Unity exported UWP projects.
 branding:
   icon: command
   color: blue
@@ -23,4 +23,3 @@ outputs:
 runs:
   using: 'node20'
   main: 'dist/index.js'
-  #post: 'dist/index.js'

@@ -22,7 +22,7 @@ const main = async () => {
             buildArgs.push(...additionalArgs.split(` `));
         } else {
             buildArgs.push(
-                `/p:AppxBundlePlatforms="x64|ARM64"`,
+                `/p:AppxBundlePlatforms=x64|ARM64`,
                 `/p:AppxBundle=Always`,
                 `/p:BuildAppxUploadPackageForUap=true`,
                 `/p:UapAppxPackageBuildMode=StoreUpload`
