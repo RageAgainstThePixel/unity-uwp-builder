@@ -30561,6 +30561,7 @@ const main = async () => {
         core.info(`Building ${buildPath}`);
         const configuration = core.getInput(`configuration`, { required: true });
         const buildArgs = [
+            `/restore`,
             `/t:Build`,
             `/p:Configuration=${configuration}`
         ];
@@ -30577,18 +30578,38 @@ const main = async () => {
             core.info(`additional-args: "${additionalArgs}"`);
             buildArgs.push(...additionalArgs.split(` `));
         }
-        await exec.exec(`msbuild`, [buildPath, ...buildArgs]);
-        const exportGlobber = await glob.create(path.join(path.dirname(buildPath), `**/AppPackages/**/*.msix`));
-        const exportFiles = await exportGlobber.glob();
-        if (exportFiles.length === 0) {
-            throw new Error(`No msix file found.`);
+        const packageType = core.getInput(`package-type`, { required: true });
+        core.info(`package-type: "${packageType}"`);
+        switch (packageType) {
+            case `msixupload`:
+                buildArgs.push(`/p:UapAppxPackageBuildMode=StoreUpload`, `/p:GenerateAppInstallerFile=false`, `/p:AppxPackageSigningEnabled=false`);
+                break;
+            case `msix`:
+                buildArgs.push(`/p:UapAppxPackageBuildMode=SideloadOnly`);
+                break;
+            case `appx`:
+                break;
+            default:
+                throw new Error(`Invalid package type: "${packageType}"`);
         }
-        const executable = exportFiles[0];
+        await exec.exec(`msbuild`, [buildPath, ...buildArgs]);
+        const outputDirectory = path.join(path.dirname(buildPath), `AppPackages`, configuration);
+        core.info(`output-directory: "${outputDirectory}"`);
+        core.setOutput(`output-directory`, outputDirectory);
+        let executable;
+        switch (packageType) {
+            case `msixupload`:
+                executable = path.join(outputDirectory, `*.msixupload`);
+                break;
+            case `msix`:
+                executable = path.join(outputDirectory, `*.msix`);
+                break;
+            case `appx`:
+                executable = path.join(outputDirectory, `*.appx`);
+                break;
+        }
         core.info(`executable: "${executable}"`);
         core.setOutput(`executable`, executable);
-        const exportPath = path.dirname(executable);
-        core.info(`export-path: "${exportPath}"`);
-        core.setOutput(`export-path`, exportPath);
     }
     catch (error) {
         core.setFailed(error);

@@ -19,11 +19,15 @@ inputs:
     description: Additional arguments to pass to the msbuild command.
     required: false
     default: ''
+  package-type:
+    description: 'The type of package to generate. Can be: `appx`, `msix`, or `msixupload`. Defaults to `appx`.'
+    required: false
+    default: 'appx'
 outputs:
   executable:
-    description: The path to the generated appx executable.
-  export-path:
-    description: The path to the export directory.
+    description: The path to the generated executable.
+  output-directory:
+    description: The path to the output-directory.
 runs:
   using: 'node20'
   main: 'dist/index.js'

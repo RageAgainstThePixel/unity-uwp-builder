@@ -68,6 +68,7 @@ jobs:
         with:
           project-path: ${{ env.UNITY_PROJECT_PATH }}/Builds/WSAPlayer
           configuration: 'Release'
+          architecture: 'ARM64'
 
       - name: print outputs
         shell: pwsh
