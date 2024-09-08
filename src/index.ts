@@ -54,24 +54,6 @@ const main = async () => {
         const outputDirectory = path.join(path.dirname(buildPath), `AppPackages`, configuration);
         core.info(`output-directory: "${outputDirectory}"`);
         core.setOutput(`output-directory`, outputDirectory);
-        let executable: string;
-        switch (packageType) {
-            case `msixupload`:
-                executable = path.join(outputDirectory, `*.msixupload`);
-                break;
-            case `msix`:
-                executable = path.join(outputDirectory, `*.msix`);
-                break;
-            case `appx`:
-                executable = path.join(outputDirectory, `*.appx`);
-                break;
-        }
-        const execGlobber = await glob.create(executable);
-        const execFiles = await execGlobber.glob();
-        if (execFiles.length === 0) { throw new Error(`No executable found.`); }
-        executable = execFiles[0];
-        core.info(`executable: "${executable}"`);
-        core.setOutput(`executable`, executable);
     } catch (error) {
         core.setFailed(error);
     }
