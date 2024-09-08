@@ -66,6 +66,10 @@ const main = async () => {
                 executable = path.join(outputDirectory, `*.appx`);
                 break;
         }
+        const execGlobber = await glob.create(executable);
+        const execFiles = await execGlobber.glob();
+        if (execFiles.length === 0) { throw new Error(`No executable found.`); }
+        executable = execFiles[0];
         core.info(`executable: "${executable}"`);
         core.setOutput(`executable`, executable);
     } catch (error) {
