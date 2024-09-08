@@ -30560,9 +30560,21 @@ const main = async () => {
         const buildPath = files[0];
         core.info(`Building ${buildPath}`);
         const configuration = core.getInput(`configuration`, { required: true });
+        const buildArgs = [`/t:Build`, `/p:Configuration=${configuration}`];
         const additionalArgs = core.getInput(`additional-args`);
-        const buildArgs = [`/t:Build`, `/p:Configuration=${configuration}`, ...additionalArgs.split(` `)];
+        if (additionalArgs) {
+            buildArgs.push(...additionalArgs.split(` `));
+        }
         await exec.exec(`msbuild`, [buildPath, ...buildArgs]);
+        const exportGlobber = await glob.create(path.join(path.dirname(buildPath), `**/AppPackages/**/*.appx`));
+        const exportFiles = await exportGlobber.glob();
+        if (exportFiles.length === 0) {
+            throw new Error(`No appx file found.`);
+        }
+        const executable = exportFiles[0];
+        core.setOutput(`executable`, executable);
+        const exportPath = path.dirname(executable);
+        core.setOutput(`export-path`, exportPath);
     }
     catch (error) {
         core.setFailed(error);

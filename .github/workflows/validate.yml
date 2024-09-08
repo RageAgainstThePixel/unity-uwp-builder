@@ -12,7 +12,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  validate:
+  unity-build:
+    name: '${{ matrix.build-target }} ${{ matrix.unity-versions }}'
     env:
       UNITY_PROJECT_PATH: '' # set by unity-setup action
     runs-on: ${{ matrix.os }}
@@ -54,7 +55,7 @@ jobs:
         name: '${{ matrix.build-target }}-Build'
         with:
           log-name: '${{ matrix.build-target }}-Build'
-          args: '-quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.UnityPlayerBuildTools.StartCommandLineBuild -export -bundleIdentifier com.rageagainstthepixel.utilities.encoder.wav'
+          args: '-quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.UnityPlayerBuildTools.StartCommandLineBuild -export -bundleIdentifier com.rageagainstthepixel.utilities.encoder.wav -arch ARM64'
 
       - uses: actions/setup-dotnet@v4
         with:
