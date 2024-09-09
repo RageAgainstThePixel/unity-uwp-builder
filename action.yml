@@ -12,9 +12,8 @@ inputs:
     required: false
     default: 'Master'
   architecture:
-    description: 'The architecture to use when building the visual studio project. Can be: `x86`, `x64`, `ARM`, or `ARM64`. Defaults to `ARM64`.'
+    description: 'The architecture to use when building the visual studio project. Can be: `x86`, `x64`, `ARM`, or `ARM64`.'
     required: false
-    default: 'ARM64'
   additional-args:
     description: Additional arguments to pass to the msbuild command.
     required: false

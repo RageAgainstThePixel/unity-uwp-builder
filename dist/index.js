@@ -30570,7 +30570,7 @@ const main = async () => {
         const architecture = core.getInput(`architecture`);
         if (architecture) {
             core.info(`architecture: "${architecture}"`);
-            buildArgs.push(`/p:Platform="${architecture}"`);
+            buildArgs.push(`/p:Platform=${architecture}`);
         }
         const additionalArgs = core.getInput(`additional-args`);
         if (additionalArgs) {
