@@ -32,18 +32,18 @@ const main = async () => {
         core.info(`package-type: "${packageType}"`);
         switch (packageType) {
             case `msixupload`:
+            case `appxupload`:
                 buildArgs.push(
                     `/p:UapAppxPackageBuildMode=StoreUpload`,
                     `/p:GenerateAppInstallerFile=false`,
-                    `/p:AppxPackageSigningEnabled=false` // store signs the package
+                    `/p:AppxPackageSigningEnabled=false`
                 );
                 break;
             case `msix`:
+            case `appx`:
                 buildArgs.push(
                     `/p:UapAppxPackageBuildMode=SideloadOnly`
                 );
-                break;
-            case `appx`:
                 break;
             default:
                 throw new Error(`Invalid package type: "${packageType}"`);
@@ -57,8 +57,8 @@ const main = async () => {
         core.setOutput(`output-directory`, outputDirectory);
         const patterns = [
             `${outputDirectory}/**/*.msix`,
-            `${outputDirectory}/**/*.msixbundle`,
             `${outputDirectory}/**/*.appx`,
+            `${outputDirectory}/**/*.msixbundle`,
             `${outputDirectory}/**/*.appxbundle`,
             `!${outputDirectory}/**/dependencies/**`
         ];
