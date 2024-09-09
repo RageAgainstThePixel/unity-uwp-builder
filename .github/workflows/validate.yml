@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   unity-build:
-    name: '${{ matrix.build-target }} ${{ matrix.unity-versions }}'
+    name: '(${{ matrix.unity-versions }}) ${{ matrix.build-target }}'
     env:
       UNITY_PROJECT_PATH: '' # set by unity-setup action
     runs-on: ${{ matrix.os }}
@@ -75,4 +75,12 @@ jobs:
         run: |
           echo "Executable: ${{ steps.uwp-build.outputs.executable }}"
           echo "Output Directory: ${{ steps.uwp-build.outputs.output-directory }}"
-          ls -al "${{ steps.uwp-build.outputs.output-directory }}"
+          ls -R "${{ steps.uwp-build.outputs.output-directory }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          retention-days: 1
+          name: ${{ matrix.unity-versions }}-${{ matrix.build-target }}.${{ github.run_number }}
+          path: |
+            ${{ github.workspace }}/**/*.log
+            ${{ steps.uwp-build.outputs.output-directory }}

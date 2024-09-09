@@ -30563,7 +30563,6 @@ const main = async () => {
         core.info(`projectName: "${projectName}"`);
         const configuration = core.getInput(`configuration`, { required: true });
         const buildArgs = [
-            `/restore`,
             `/t:Build`,
             `/p:Configuration=${configuration}`
         ];
@@ -30588,6 +30587,9 @@ const main = async () => {
                 break;
             default:
                 throw new Error(`Invalid package type: "${packageType}"`);
+        }
+        if (!core.isDebug()) {
+            buildArgs.push(`/verbosity:minimal`);
         }
         await exec.exec(`msbuild`, [buildPath, ...buildArgs]);
         const outputDirectory = path.join(projectPath, `AppPackages`);
