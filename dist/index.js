@@ -30568,7 +30568,7 @@ const main = async () => {
         ];
         const architecture = core.getInput(`architecture`) || `ARM64`;
         core.info(`architecture: "${architecture}"`);
-        buildArgs.push(`/p:Platform=${architecture}`);
+        buildArgs.push(`/p:Platform="${architecture}"`);
         const additionalArgs = core.getInput(`additional-args`);
         if (additionalArgs) {
             core.info(`additional-args: "${additionalArgs}"`);
@@ -30579,7 +30579,7 @@ const main = async () => {
         switch (packageType) {
             case `msixupload`:
             case `appxupload`:
-                buildArgs.push(`/p:UapAppxPackageBuildMode=StoreUpload`, `/p:GenerateAppInstallerFile=false`, `/p:AppxPackageSigningEnabled=false`);
+                buildArgs.push(`/p:UapAppxPackageBuildMode=StoreUpload`, `/p:GenerateAppInstallerFile=false`, `/p:AppxPackageSigningEnabled=false`, `/p:BuildAppxUploadPackageForUap=true`);
                 break;
             case `msix`:
             case `appx`:

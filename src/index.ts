@@ -19,10 +19,11 @@ const main = async () => {
         const buildArgs = [
             `/t:Build`,
             `/p:Configuration=${configuration}`
+            //`/p:AppxBundlePlatforms="x86|x64|ARM|ARM64"`,
         ];
         const architecture = core.getInput(`architecture`) || `ARM64`;
         core.info(`architecture: "${architecture}"`);
-        buildArgs.push(`/p:Platform=${architecture}`);
+        buildArgs.push(`/p:Platform="${architecture}"`);
         const additionalArgs = core.getInput(`additional-args`);
         if (additionalArgs) {
             core.info(`additional-args: "${additionalArgs}"`);
@@ -36,7 +37,8 @@ const main = async () => {
                 buildArgs.push(
                     `/p:UapAppxPackageBuildMode=StoreUpload`,
                     `/p:GenerateAppInstallerFile=false`,
-                    `/p:AppxPackageSigningEnabled=false`
+                    `/p:AppxPackageSigningEnabled=false`,
+                    `/p:BuildAppxUploadPackageForUap=true`
                 );
                 break;
             case `msix`:
