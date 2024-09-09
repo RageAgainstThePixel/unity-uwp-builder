@@ -30559,6 +30559,8 @@ const main = async () => {
         }
         const buildPath = files[0];
         core.info(`Building ${buildPath}`);
+        let projectName = path.basename(buildPath, `.sln`);
+        core.info(`projectName: "${projectName}"`);
         const configuration = core.getInput(`configuration`, { required: true });
         const buildArgs = [
             `/restore`,
@@ -30595,7 +30597,8 @@ const main = async () => {
             `${outputDirectory}/**/*.msix`,
             `${outputDirectory}/**/*.msixbundle`,
             `${outputDirectory}/**/*.appx`,
-            `${outputDirectory}/**/*.appxbundle`
+            `${outputDirectory}/**/*.appxbundle`,
+            `!${outputDirectory}/**/dependencies/**`
         ];
         const executableGlobber = await glob.create(patterns.join(`\n`));
         const executables = await executableGlobber.glob();
