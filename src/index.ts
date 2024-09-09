@@ -2,6 +2,7 @@ import core = require('@actions/core');
 import exec = require('@actions/exec');
 import glob = require('@actions/glob');
 import path = require('path');
+import fs = require('fs');
 
 const main = async () => {
     try {
@@ -18,13 +19,9 @@ const main = async () => {
             `/t:Build`,
             `/p:Configuration=${configuration}`
         ];
-        const architecture = core.getInput(`architecture`);
-        if (architecture) {
-            core.info(`architecture: "${architecture}"`);
-            buildArgs.push(`/p:Platform=${architecture}`);
-        } else {
-            buildArgs.push(`/p:Platform=x64|ARM64`);
-        }
+        const architecture = core.getInput(`architecture`) || `ARM64`;
+        core.info(`architecture: "${architecture}"`);
+        buildArgs.push(`/p:Platform=${architecture}`);
         const additionalArgs = core.getInput(`additional-args`);
         if (additionalArgs) {
             core.info(`additional-args: "${additionalArgs}"`);
@@ -51,8 +48,14 @@ const main = async () => {
                 throw new Error(`Invalid package type: "${packageType}"`);
         }
         await exec.exec(`msbuild`, [buildPath, ...buildArgs]);
-        const outputDirectory = path.join(path.dirname(buildPath), `AppPackages`, configuration);
-        core.info(`output-directory: "${outputDirectory}"`);
+        const executableGlobber = await glob.create(path.join(path.dirname(buildPath), `**/*.+(appx|msix|msixupload|appxupload)`));
+        const executables = await executableGlobber.glob();
+        if (executables.length === 0) { throw new Error(`No package found.`); }
+        const executable = executables[0];
+        core.info(`Found executable: ${executable}`);
+        core.setOutput(`executable`, executable);
+        const outputDirectory = path.join(projectPath, `AppPackages`);
+        core.info(`outputDirectory: ${outputDirectory}`);
         core.setOutput(`output-directory`, outputDirectory);
     } catch (error) {
         core.setFailed(error);
