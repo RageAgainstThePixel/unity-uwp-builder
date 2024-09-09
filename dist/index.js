@@ -30603,8 +30603,10 @@ const main = async () => {
             core.warning(`No executables found.`);
             return;
         }
+        core.info(`Found executables:`);
+        executables.forEach(executable => core.info(`  - "${executable}"`));
         const executable = executables[0];
-        core.info(`Found executable: ${executable} `);
+        core.info(`Found executable: "${executable}"`);
         core.setOutput(`executable`, executable);
     }
     catch (error) {
