@@ -71,8 +71,8 @@ jobs:
           architecture: 'ARM64'
 
       - name: print outputs
-        shell: pwsh
+        shell: bash
         run: |
-          # Write-Output "Executable: ${{ steps.uwp-build.outputs.executable }}"
-          Write-Output "Output Directory: ${{ steps.uwp-build.outputs.output-directory }}"
-          Get-ChildItem -Path ${{ steps.uwp-build.outputs.output-directory }} -Force
+          echo "Executable: ${{ steps.uwp-build.outputs.executable }}"
+          echo "Output Directory: ${{ steps.uwp-build.outputs.output-directory }}"
+          ls -al ${{ steps.uwp-build.outputs.output-directory }}
