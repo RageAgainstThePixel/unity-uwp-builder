@@ -48,15 +48,18 @@ const main = async () => {
                 throw new Error(`Invalid package type: "${packageType}"`);
         }
         await exec.exec(`msbuild`, [buildPath, ...buildArgs]);
-        const executableGlobber = await glob.create(path.join(path.dirname(buildPath), `**/*.+(appx|msix|msixupload|appxupload)`));
-        const executables = await executableGlobber.glob();
-        if (executables.length === 0) { throw new Error(`No package found.`); }
-        const executable = executables[0];
-        core.info(`Found executable: ${executable}`);
-        core.setOutput(`executable`, executable);
         const outputDirectory = path.join(projectPath, `AppPackages`);
         core.info(`outputDirectory: ${outputDirectory}`);
         core.setOutput(`output-directory`, outputDirectory);
+        const executableGlobber = await glob.create(path.join(outputDirectory, `**/*.+(appx|msix|msixupload|appxupload)`));
+        const executables = await executableGlobber.glob();
+        if (executables.length === 0) {
+            core.warning(`No executables found.`);
+            return;
+        }
+        const executable = executables[0];
+        core.info(`Found executable: ${executable}`);
+        core.setOutput(`executable`, executable);
     } catch (error) {
         core.setFailed(error);
     }
