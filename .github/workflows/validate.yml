@@ -73,6 +73,6 @@ jobs:
       - name: print outputs
         shell: pwsh
         run: |
-          # Write-Output "Executable: $(${{ steps.uwp-build.outputs.executable }})"
+          # Write-Output "Executable: ${{ steps.uwp-build.outputs.executable }}"
           Write-Output "Output Directory: ${{ steps.uwp-build.outputs.output-directory }}"
           Get-ChildItem -Path ${{ steps.uwp-build.outputs.output-directory }} -Force

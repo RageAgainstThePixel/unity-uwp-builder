@@ -30591,14 +30591,20 @@ const main = async () => {
         const outputDirectory = path.join(projectPath, `AppPackages`);
         core.info(`outputDirectory: ${outputDirectory}`);
         core.setOutput(`output-directory`, outputDirectory);
-        const executableGlobber = await glob.create(path.join(outputDirectory, `**/*.+(appx|msix|msixupload|appxupload)`));
+        const patterns = [
+            `${outputDirectory}/**/*.msix`,
+            `${outputDirectory}/**/*.msixbundle`,
+            `${outputDirectory}/**/*.appx`,
+            `${outputDirectory}/**/*.appxbundle`
+        ];
+        const executableGlobber = await glob.create(patterns.join(`\n`));
         const executables = await executableGlobber.glob();
         if (executables.length === 0) {
             core.warning(`No executables found.`);
             return;
         }
         const executable = executables[0];
-        core.info(`Found executable: ${executable}`);
+        core.info(`Found executable: ${executable} `);
         core.setOutput(`executable`, executable);
     }
     catch (error) {
