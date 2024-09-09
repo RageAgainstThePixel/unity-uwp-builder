@@ -30564,11 +30564,14 @@ const main = async () => {
         const configuration = core.getInput(`configuration`, { required: true });
         const buildArgs = [
             `/t:Build`,
-            `/p:Configuration=${configuration}`
+            `/p:Configuration=${configuration}`,
+            `/p:AppxBundlePlatforms="x86|x64|ARM|ARM64"`,
         ];
-        const architecture = core.getInput(`architecture`) || `ARM64`;
-        core.info(`architecture: "${architecture}"`);
-        buildArgs.push(`/p:Platform="${architecture}"`);
+        const architecture = core.getInput(`architecture`);
+        if (architecture) {
+            core.info(`architecture: "${architecture}"`);
+            buildArgs.push(`/p:Platform="${architecture}"`);
+        }
         const additionalArgs = core.getInput(`additional-args`);
         if (additionalArgs) {
             core.info(`additional-args: "${additionalArgs}"`);

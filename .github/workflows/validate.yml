@@ -67,7 +67,6 @@ jobs:
         id: uwp-build
         with:
           project-path: ${{ env.UNITY_PROJECT_PATH }}/Builds/WSAPlayer
-          architecture: 'Any CPU'
 
       - name: print outputs
         shell: bash
