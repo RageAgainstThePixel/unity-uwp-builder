@@ -55,7 +55,7 @@ jobs:
         name: '${{ matrix.build-target }}-Build'
         with:
           log-name: '${{ matrix.build-target }}-Build'
-          args: '-quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.UnityPlayerBuildTools.StartCommandLineBuild -arch ARM64'
+          args: '-quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.UnityPlayerBuildTools.StartCommandLineBuild'
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -67,8 +67,6 @@ jobs:
         id: uwp-build
         with:
           project-path: ${{ env.UNITY_PROJECT_PATH }}/Builds/WSAPlayer
-          configuration: 'Release'
-          architecture: 'ARM64'
 
       - name: print outputs
         shell: bash
