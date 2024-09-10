@@ -18,7 +18,7 @@ steps:
 | `project-path` | The directory that contains the exported visual studio project from Unity. | true |
 | `configuration` | The configuration to use when building the visual studio project. | Defaults to `Release`. |
 | `architecture` | The architecture to use when building the visual studio project. Can be: `x86`, `x64`, `ARM`, or `ARM64`. | Defaults to `ARM64`. |
-| `package-type` | The type of package to generate. Can be: `appx`, `msix`, or `upload`. | Defaults to `appx`. |
+| `package-type` | The type of package to generate. Can be: `sideload` or `upload`. | Defaults to `sideload`. |
 
 ### outputs
 

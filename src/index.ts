@@ -25,11 +25,6 @@ const main = async () => {
             core.info(`architecture: "${architecture}"`);
             buildArgs.push(`/p:Platform=${architecture}`);
         }
-        const additionalArgs = core.getInput(`additional-args`);
-        if (additionalArgs) {
-            core.info(`additional-args: "${additionalArgs}"`);
-            buildArgs.push(...additionalArgs.split(` `));
-        }
         const packageType = core.getInput(`package-type`, { required: true });
         core.info(`package-type: "${packageType}"`);
         switch (packageType) {
@@ -41,14 +36,18 @@ const main = async () => {
                     `/p:BuildAppxUploadPackageForUap=true`
                 );
                 break;
-            case `msix`:
-            case `appx`:
+            case `sideload`:
                 buildArgs.push(
                     `/p:UapAppxPackageBuildMode=SideloadOnly`
                 );
                 break;
             default:
                 throw new Error(`Invalid package type: "${packageType}"`);
+        }
+        const additionalArgs = core.getInput(`additional-args`);
+        if (additionalArgs) {
+            core.info(`additional-args: "${additionalArgs}"`);
+            buildArgs.push(...additionalArgs.split(` `));
         }
         if (!core.isDebug()) {
             buildArgs.push(`/verbosity:minimal`);
@@ -60,10 +59,12 @@ const main = async () => {
         core.info(`outputDirectory: ${outputDirectory}`);
         core.setOutput(`output-directory`, outputDirectory);
         const patterns = [
-            `${outputDirectory}/**/*.msix`,
             `${outputDirectory}/**/*.appx`,
-            `${outputDirectory}/**/*.msixbundle`,
+            `${outputDirectory}/**/*.msix`,
             `${outputDirectory}/**/*.appxbundle`,
+            `${outputDirectory}/**/*.msixbundle`,
+            `${outputDirectory}/**/*.appxupload`,
+            `${outputDirectory}/**/*.msixupload`,
             `!${outputDirectory}/**/dependencies/**`
         ];
         const executableGlobber = await glob.create(patterns.join(`\n`));
@@ -74,7 +75,15 @@ const main = async () => {
         }
         core.info(`Found executables:`);
         executables.forEach(executable => core.info(`  - "${executable}"`));
-        const executable = executables[0];
+        let executable: string;
+        switch (packageType) {
+            case `upload`:
+                executable = executables.find(file => file.endsWith(`.appxupload`) || file.endsWith(`.msixupload`));
+                break;
+            case `sideload`:
+                executable = executables.find(file => file.endsWith(`.appx`) || file.endsWith(`.msix`));
+                break;
+        }
         core.info(`Found executable: "${executable}"`);
         core.setOutput(`executable`, executable);
     } catch (error) {
