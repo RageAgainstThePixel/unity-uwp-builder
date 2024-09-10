@@ -18,8 +18,7 @@ const main = async () => {
         const configuration = core.getInput(`configuration`, { required: true });
         const buildArgs = [
             `/t:Build`,
-            `/p:Configuration=${configuration}`,
-            `/p:AppxBundlePlatforms="x86|x64|ARM|ARM64"`,
+            `/p:Configuration=${configuration}`
         ];
         const architecture = core.getInput(`architecture`);
         if (architecture) {
@@ -34,8 +33,7 @@ const main = async () => {
         const packageType = core.getInput(`package-type`, { required: true });
         core.info(`package-type: "${packageType}"`);
         switch (packageType) {
-            case `msixupload`:
-            case `appxupload`:
+            case `upload`:
                 buildArgs.push(
                     `/p:UapAppxPackageBuildMode=StoreUpload`,
                     `/p:GenerateAppInstallerFile=false`,

@@ -20,7 +20,7 @@ inputs:
     required: false
     default: ''
   package-type:
-    description: 'The type of package to generate. Can be: `appx`, `msix`, or `msixupload`. Defaults to `appx`.'
+    description: 'The type of package to generate. Can be: `appx`, `msix`, or `upload`. Defaults to `appx`.'
     required: false
     default: 'appx'
 outputs:
