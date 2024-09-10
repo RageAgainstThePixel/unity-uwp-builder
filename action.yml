@@ -1,7 +1,7 @@
 name: unity-uwp-builder
 description: A GitHub Action to build Unity exported UWP projects.
 branding:
-  icon: command
+  icon: package
   color: blue
 inputs:
   project-path:

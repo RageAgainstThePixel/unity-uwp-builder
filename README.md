@@ -2,6 +2,9 @@
 
 A GitHub Action to build Unity exported UWP projects.
 
+> [!NOTE]
+> The main goal of this action to to take what is provided from Unity and package it to be directly uploaded to the Microsoft Store.
+
 ## How to use
 
 ### workflow
@@ -9,6 +12,11 @@ A GitHub Action to build Unity exported UWP projects.
 ```yaml
 steps:
   - uses: RageAgainstThePixel/unity-uwp-builder@v1
+    with:
+      project-path: 'path/to/unity/build/output'
+      configuration: 'Master'
+      architecture: 'ARM64'
+      package-type: 'upload'
 ```
 
 ### inputs
