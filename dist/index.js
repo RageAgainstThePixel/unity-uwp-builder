@@ -30565,7 +30565,7 @@ const main = async () => {
         const buildArgs = [
             `/t:Build`,
             `/p:Configuration=${configuration}`,
-            `/p:AppxBundlePlatforms=\"x86|x64|ARM|ARM64\"`,
+            `/p:AppxBundlePlatforms="x86|x64|ARM|ARM64"`,
         ];
         const architecture = core.getInput(`architecture`);
         if (architecture) {
@@ -30594,7 +30594,9 @@ const main = async () => {
         if (!core.isDebug()) {
             buildArgs.push(`/verbosity:minimal`);
         }
-        await exec.exec(`msbuild`, [buildPath, ...buildArgs]);
+        await exec.exec(`msbuild`, [buildPath, ...buildArgs], {
+            windowsVerbatimArguments: true
+        });
         const outputDirectory = path.join(projectPath, `AppPackages`);
         core.info(`outputDirectory: ${outputDirectory}`);
         core.setOutput(`output-directory`, outputDirectory);
