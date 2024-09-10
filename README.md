@@ -14,7 +14,7 @@ steps:
   - uses: RageAgainstThePixel/unity-uwp-builder@v1
     id: uwp-build
     with:
-      project-path: ${{ env.UNITY_PROJECT_PATH }}/Builds/WSAPlayer
+      project-path: '/path/to/your/build/output/directory'
       package-type: 'upload'
 
   - name: print outputs
