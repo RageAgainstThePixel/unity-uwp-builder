@@ -12,11 +12,17 @@ A GitHub Action to build Unity exported UWP projects.
 ```yaml
 steps:
   - uses: RageAgainstThePixel/unity-uwp-builder@v1
+    id: uwp-build
     with:
-      project-path: 'path/to/unity/build/output'
-      configuration: 'Master'
-      architecture: 'ARM64'
+      project-path: ${{ env.UNITY_PROJECT_PATH }}/Builds/WSAPlayer
       package-type: 'upload'
+
+  - name: print outputs
+    shell: bash
+    run: |
+      echo "Executable: ${{ steps.uwp-build.outputs.executable }}"
+      echo "Output Directory: ${{ steps.uwp-build.outputs.output-directory }}"
+      ls -R "${{ steps.uwp-build.outputs.output-directory }}"
 ```
 
 ### inputs
