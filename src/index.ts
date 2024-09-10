@@ -19,7 +19,7 @@ const main = async () => {
         const buildArgs = [
             `/t:Build`,
             `/p:Configuration=${configuration}`,
-            `/p:AppxBundlePlatforms="x86|x64|ARM|ARM64"`,
+            `/p:AppxBundlePlatforms=\"x86|x64|ARM|ARM64\"`,
         ];
         const architecture = core.getInput(`architecture`);
         if (architecture) {
