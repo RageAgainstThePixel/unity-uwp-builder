@@ -56,8 +56,7 @@ jobs:
         with:
           log-name: 'create-test-project'
           args: '-quit -nographics -batchmode -createProject "${{ github.workspace }}/TestProject" -cloneFromTemplate "${{ env.TEMPLATE_PATH }}"'
-      - run: 'openupm add com.virtualmaker.buildalon'
-        name: Add Build Pipeline Package
+      - run: 'openupm add com.utilities.buildpieline'
         working-directory: ${{ github.workspace }}/TestProject
       - uses: RageAgainstThePixel/unity-action@v1
         name: '${{ matrix.build-target }}-Validate'
@@ -73,6 +72,8 @@ jobs:
           args: '-quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.UnityPlayerBuildTools.StartCommandLineBuild -sceneList Assets/Scenes/SampleScene.unity -arch ARM64'
 
       - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
       - uses: microsoft/setup-msbuild@v2
 
         # builds visual studio project for UWP and packages it for store upload
