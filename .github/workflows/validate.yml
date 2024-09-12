@@ -56,7 +56,8 @@ jobs:
         with:
           log-name: 'create-test-project'
           args: '-quit -nographics -batchmode -createProject "${{ github.workspace }}/TestProject" -cloneFromTemplate "${{ env.TEMPLATE_PATH }}"'
-      - run: 'openupm add com.utilities.buildpieline'
+      - run: 'openupm add com.utilities.buildpipeline'
+        name: Add Build Pipeline Package
         working-directory: ${{ github.workspace }}/TestProject
       - uses: RageAgainstThePixel/unity-action@v1
         name: '${{ matrix.build-target }}-Validate'
