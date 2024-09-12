@@ -11,6 +11,10 @@ A GitHub Action to build Unity exported UWP projects.
 
 ```yaml
 steps:
+  - uses: actions/setup-dotnet@v4
+  - uses: microsoft/setup-msbuild@v2
+
+  # builds visual studio project for UWP and packages it for store upload
   - uses: RageAgainstThePixel/unity-uwp-builder@v1
     id: uwp-build
     with:

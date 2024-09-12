@@ -57,9 +57,10 @@ jobs:
           log-name: '${{ matrix.build-target }}-Build'
           args: '-quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.UnityPlayerBuildTools.StartCommandLineBuild -arch ARM64'
 
+      - uses: actions/setup-dotnet@v4
       - uses: microsoft/setup-msbuild@v2
 
-        # builds visual studio project for UWP and packages it as an appx
+        # builds visual studio project for UWP and packages it for store upload
       - uses: ./ # RageAgainstThePixel/unity-uwp-builder
         id: uwp-build
         with:
