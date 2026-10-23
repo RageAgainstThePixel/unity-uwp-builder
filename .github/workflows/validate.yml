@@ -42,6 +42,7 @@ jobs:
         id: unity-project
         with:
           project-name: Test Project
+          template-name: com.unity.template.(3d(-cross-platform)?|urp-blank)
       - name: Set Unity Project Path
         run: echo "UNITY_PROJECT_PATH=${{ steps.unity-project.outputs.project-path }}" >> $env:GITHUB_ENV
         shell: pwsh
