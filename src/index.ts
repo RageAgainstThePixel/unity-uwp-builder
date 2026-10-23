@@ -1,8 +1,8 @@
-import core = require('@actions/core');
-import exec = require('@actions/exec');
-import glob = require('@actions/glob');
-import path = require('path');
-import fs = require('fs');
+import * as core from '@actions/core';
+import * as exec from '@actions/exec';
+import * as glob from '@actions/glob';
+import * as path from 'path';
+import * as fs from 'fs';
 
 const main = async () => {
     try {
