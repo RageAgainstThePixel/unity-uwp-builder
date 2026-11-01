@@ -1,0 +1,105 @@
+name: build
+permissions:
+  contents: read
+on:
+  workflow_call:
+    inputs:
+      matrix:
+        required: true
+        type: string
+      allow-security-alert:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      UNITY_USERNAME:
+        required: true
+      UNITY_PASSWORD:
+        required: true
+jobs:
+  build:
+    name: '(${{ matrix.unity-version }}) ${{ matrix.build-target }} - ${{ matrix.uwp-package-type }}'
+    strategy:
+      matrix: ${{ fromJSON(inputs.matrix) }}
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    env:
+      TEMPLATE_PATH: ''
+      UNITY_PROJECT_PATH: '' # set by unity-setup action
+    steps:
+      - uses: actions/checkout@v7
+      - run: 'npm install -g openupm-cli'
+        # Installs the Unity Editor based on your project version text file
+        # sets -> env.UNITY_EDITOR_PATH
+        # sets -> env.UNITY_PROJECT_PATH
+      - uses: RageAgainstThePixel/unity-setup@v3
+        with:
+          version-file: 'None'
+          build-targets: ${{ matrix.build-target }}
+          unity-version: ${{ matrix.unity-version }}
+          allow-security-alert: ${{ inputs.allow-security-alert }}
+      - name: Find Unity Template Path
+        run: |
+          $rootPath = $env:UNITY_EDITOR_PATH -replace "Editor.*", ""
+          Write-Host "ROOT_PATH=$rootPath"
+          $templatePath = Get-ChildItem -Recurse -Filter "com.unity.template.3d*.tgz" -Path $rootPath | Select-Object -First 1 | Select-Object -ExpandProperty FullName
+          Write-Host "TEMPLATE_PATH=$templatePath"
+          echo "TEMPLATE_PATH=$templatePath" >> $env:GITHUB_ENV
+          $projectPath = "${{ github.workspace }}/Test Project"
+          echo "UNITY_PROJECT_PATH=$projectPath" >> $env:GITHUB_ENV
+        shell: pwsh
+        # Activates the installation with the provided credentials
+      - uses: RageAgainstThePixel/activate-unity-license@v1
+        with:
+          license: 'Personal'
+          username: ${{ secrets.UNITY_USERNAME }}
+          password: ${{ secrets.UNITY_PASSWORD }}
+      - uses: RageAgainstThePixel/unity-action@v1
+        name: Create Test Project
+        with:
+          log-name: 'create-test-project'
+          args: '-quit -nographics -batchmode -createProject "${{ env.UNITY_PROJECT_PATH }}" -cloneFromTemplate "${{ env.TEMPLATE_PATH }}"'
+      - run: 'openupm add com.utilities.buildpipeline'
+        name: Add Build Pipeline Package
+        working-directory: ${{ env.UNITY_PROJECT_PATH }}
+      - uses: RageAgainstThePixel/unity-action@v1
+        name: '${{ matrix.build-target }}-Validate'
+        with:
+          build-target: ${{ matrix.build-target }}
+          log-name: '${{ matrix.build-target }}-Validate'
+          args: '-quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.UnityPlayerBuildTools.ValidateProject -importTMProEssentialsAsset'
+      - uses: RageAgainstThePixel/unity-action@v1
+        name: '${{ matrix.build-target }}-Build'
+        with:
+          build-target: ${{ matrix.build-target }}
+          log-name: '${{ matrix.build-target }}-Build'
+          args: '-quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.UnityPlayerBuildTools.StartCommandLineBuild -sceneList Assets/Scenes/SampleScene.unity -arch ARM64'
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.x'
+      - uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3.0.0
+
+        # builds visual studio project for UWP and packages it for store upload
+      - uses: ./ # RageAgainstThePixel/unity-uwp-builder
+        id: uwp-build
+        with:
+          project-path: ${{ env.UNITY_PROJECT_PATH }}/Builds/WSAPlayer
+          package-type: ${{ matrix.uwp-package-type }}
+
+      - name: print outputs
+        shell: bash
+        run: |
+          echo "Executable: ${{ steps.uwp-build.outputs.executable }}"
+          echo "Output Directory: ${{ steps.uwp-build.outputs.output-directory }}"
+          ls -R "${{ steps.uwp-build.outputs.output-directory }}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          retention-days: 1
+          name: ${{ github.run_number }}.${{ github.run_attempt }} ${{ matrix.unity-version }}-${{ matrix.build-target }}-${{ matrix.uwp-package-type }}
+          path: |
+            ${{ github.workspace }}/**/*.log
+            ${{ steps.uwp-build.outputs.output-directory }}

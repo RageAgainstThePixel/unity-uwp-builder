@@ -44,3 +44,7 @@ steps:
 
 - `executable`: The path to the generated appx executable.
 - `output-directory`: The path to the package output directory.
+
+## validation
+
+Pull requests test the current Unity streams; a monthly run covers the older lines.
