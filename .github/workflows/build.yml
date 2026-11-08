@@ -1,0 +1,99 @@
+name: build
+permissions:
+  contents: read
+on:
+  workflow_call:
+    inputs:
+      matrix:
+        required: true
+        type: string
+      allow-security-alert:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      UNITY_USERNAME:
+        required: true
+      UNITY_PASSWORD:
+        required: true
+jobs:
+  build:
+    # rows are grouped by editor version, so the name carries the target and package type
+    name: ${{ matrix.build-target }} ${{ matrix.uwp-package-type }}
+    strategy:
+      matrix: ${{ fromJSON(inputs.matrix) }}
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    # a hung editor, licensing call or IL2CPP build must not hold the matrix
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: RageAgainstThePixel/unity-setup@v3
+        timeout-minutes: 30
+        with:
+          version-file: 'None'
+          build-targets: ${{ matrix.build-target }}
+          unity-version: ${{ matrix.unity-version }}
+          allow-security-alert: ${{ inputs.allow-security-alert }}
+      - uses: RageAgainstThePixel/activate-unity-license@v3
+        with:
+          license: Personal
+          username: ${{ secrets.UNITY_USERNAME }}
+          password: ${{ secrets.UNITY_PASSWORD }}
+      - uses: RageAgainstThePixel/create-unity-project@v3
+        id: unity-project
+        with:
+          project-name: Test Project
+          template-name: com.unity.template.(3d(-cross-platform)?|urp-blank)
+      - name: Set Unity Project Path
+        env:
+          PROJECT_PATH: ${{ steps.unity-project.outputs.project-path }}
+        run: echo "UNITY_PROJECT_PATH=${PROJECT_PATH}" >> "${GITHUB_ENV}"
+      - name: Add Build Pipeline Package
+        working-directory: ${{ env.UNITY_PROJECT_PATH }}
+        run: |
+          npm install -g openupm-cli
+          openupm add com.utilities.buildpipeline
+      - uses: RageAgainstThePixel/unity-action@v4
+        name: ${{ matrix.build-target }}-Validate
+        with:
+          build-target: ${{ matrix.build-target }}
+          log-name: ${{ matrix.build-target }}-Validate
+          args: -quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.UnityPlayerBuildTools.ValidateProject
+      - uses: RageAgainstThePixel/unity-action@v4
+        name: ${{ matrix.build-target }}-Build
+        with:
+          build-target: ${{ matrix.build-target }}
+          log-name: ${{ matrix.build-target }}-Build
+          args: -quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.UnityPlayerBuildTools.StartCommandLineBuild -sceneList Assets/Scenes/SampleScene.unity -arch ARM64
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.x'
+      - uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
+      # builds visual studio project for UWP and packages it for store upload
+      - uses: ./ # RageAgainstThePixel/unity-uwp-builder
+        id: uwp-build
+        with:
+          project-path: ${{ env.UNITY_PROJECT_PATH }}/Builds/WSAPlayer
+          package-type: ${{ matrix.uwp-package-type }}
+      - name: Print outputs
+        env:
+          EXECUTABLE: ${{ steps.uwp-build.outputs.executable }}
+          OUTPUT_DIRECTORY: ${{ steps.uwp-build.outputs.output-directory }}
+        run: |
+          echo "Executable: ${EXECUTABLE}"
+          echo "Output Directory: ${OUTPUT_DIRECTORY}"
+          ls -R "${OUTPUT_DIRECTORY}"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          retention-days: 1
+          name: ${{ github.run_number }}.${{ github.run_attempt }} ${{ matrix.unity-version }}-${{ matrix.build-target }}-${{ matrix.uwp-package-type }}
+          path: |
+            ${{ github.workspace }}/**/*.log
+            ${{ steps.uwp-build.outputs.output-directory }}

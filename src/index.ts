@@ -195,9 +195,10 @@ async function getInstalledUwpToolsets(architecture: string): Promise<string[]> 
 }
 
 async function getCertificateThumbprint(certificatePath: string): Promise<string> {
-    const thumbprintCmd = `powershell -command "(Get-PfxCertificate -FilePath '${certificatePath}').Thumbprint"`;
+    // the path reaches powershell through the environment, so it is never parsed as part of the command
     let thumbprint = ``;
-    await exec.exec(thumbprintCmd, [], {
+    await exec.exec(`powershell`, [`-NoProfile`, `-Command`, `(Get-PfxCertificate -FilePath $env:UWP_CERTIFICATE_PATH).Thumbprint`], {
+        env: { ...process.env, UWP_CERTIFICATE_PATH: certificatePath } as { [key: string]: string },
         listeners: {
             stdout: (data: Buffer) => {
                 thumbprint += data.toString();

@@ -35392,9 +35392,9 @@ async function getInstalledUwpToolsets(architecture) {
     return toolsets.sort((a, b) => parseInt(a.substring(1)) - parseInt(b.substring(1)));
 }
 async function getCertificateThumbprint(certificatePath) {
-    const thumbprintCmd = `powershell -command "(Get-PfxCertificate -FilePath '${certificatePath}').Thumbprint"`;
     let thumbprint = ``;
-    await exec_exec(thumbprintCmd, [], {
+    await exec_exec(`powershell`, [`-NoProfile`, `-Command`, `(Get-PfxCertificate -FilePath $env:UWP_CERTIFICATE_PATH).Thumbprint`], {
+        env: { ...process.env, UWP_CERTIFICATE_PATH: certificatePath },
         listeners: {
             stdout: (data) => {
                 thumbprint += data.toString();

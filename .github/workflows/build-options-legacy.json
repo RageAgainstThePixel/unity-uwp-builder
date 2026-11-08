@@ -1,0 +1,22 @@
+{
+  "os": [
+    "windows-latest"
+  ],
+  "unity-version": [
+    "2021.x",
+    "2022.x",
+    "6000.x"
+  ],
+  "include": [
+    {
+      "os": "windows-latest",
+      "build-target": "WSAPlayer",
+      "uwp-package-type": "sideload"
+    },
+    {
+      "os": "windows-latest",
+      "build-target": "WSAPlayer",
+      "uwp-package-type": "upload"
+    }
+  ]
+}
