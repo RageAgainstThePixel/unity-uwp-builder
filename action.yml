@@ -31,5 +31,5 @@ outputs:
   output-directory:
     description: The path to the output-directory.
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/index.js'
