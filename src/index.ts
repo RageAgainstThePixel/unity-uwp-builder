@@ -69,6 +69,10 @@ const main = async () => {
             default:
                 throw new Error(`Invalid package type: "${packageType}"`);
         }
+        const platformToolset = await getPlatformToolsetOverride(projectPath, architecture);
+        if (platformToolset) {
+            buildArgs.push(`/p:PlatformToolset=${platformToolset}`);
+        }
         const additionalArgs = core.getInput(`additional-args`);
         if (additionalArgs) {
             core.debug(`additional-args: "${additionalArgs}"`);
@@ -140,6 +144,54 @@ async function getCertificatePath(projectPath: string): Promise<string> {
         throw new Error(`Certificate file not found: "${certificatePath}"`);
     }
     return certificatePath;
+}
+
+async function getPlatformToolsetOverride(projectPath: string, architecture: string): Promise<string | undefined> {
+    const projectGlobber = await glob.create(`${projectPath}/**/*.vcxproj`);
+    const projectFiles = await projectGlobber.glob();
+    const requiredToolsets = new Set<string>();
+    for (const projectFile of projectFiles) {
+        const contents = await fs.promises.readFile(projectFile, `utf8`);
+        for (const match of contents.matchAll(/<PlatformToolset>\s*(v\d+)\s*<\/PlatformToolset>/g)) {
+            requiredToolsets.add(match[1]);
+        }
+    }
+    if (requiredToolsets.size === 0) { return undefined; }
+    core.debug(`Required platform toolsets: ${[...requiredToolsets].join(`, `)}`);
+    const installedToolsets = await getInstalledUwpToolsets(architecture);
+    if (installedToolsets.length === 0) {
+        core.debug(`Unable to determine installed UWP platform toolsets.`);
+        return undefined;
+    }
+    core.debug(`Installed UWP platform toolsets: ${installedToolsets.join(`, `)}`);
+    if ([...requiredToolsets].every(toolset => installedToolsets.includes(toolset))) { return undefined; }
+    const latestToolset = installedToolsets[installedToolsets.length - 1];
+    core.info(`Platform toolset ${[...requiredToolsets].join(`, `)} is not installed, using ${latestToolset} instead.`);
+    return latestToolset;
+}
+
+async function getInstalledUwpToolsets(architecture: string): Promise<string[]> {
+    let installationPath = ``;
+    const vswhere = path.join(process.env[`ProgramFiles(x86)`] || `C:\\Program Files (x86)`, `Microsoft Visual Studio`, `Installer`, `vswhere.exe`);
+    try {
+        await exec.exec(`"${vswhere}"`, [`-latest`, `-products`, `*`, `-requires`, `Microsoft.Component.MSBuild`, `-property`, `installationPath`], {
+            silent: true,
+            listeners: {
+                stdout: (data: Buffer) => {
+                    installationPath += data.toString();
+                }
+            }
+        });
+    } catch (error) {
+        return [];
+    }
+    installationPath = installationPath.trim().split(/\r?\n/)[0];
+    if (!installationPath) { return []; }
+    const platform = architecture || `*`;
+    const toolsetGlobber = await glob.create(`${installationPath}/MSBuild/Microsoft/VC/*/Application Type/Windows Store/10.0/Platforms/${platform}/PlatformToolsets/v*`, { matchDirectories: true, implicitDescendants: false });
+    const toolsetPaths = await toolsetGlobber.glob();
+    const toolsets = [...new Set(toolsetPaths.map(toolsetPath => path.basename(toolsetPath)))];
+    return toolsets.sort((a, b) => parseInt(a.substring(1)) - parseInt(b.substring(1)));
 }
 
 async function getCertificateThumbprint(certificatePath: string): Promise<string> {
