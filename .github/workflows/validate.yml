@@ -14,9 +14,6 @@ concurrency:
 jobs:
   unity-build:
     name: '(${{ matrix.unity-version }}) ${{ matrix.build-target }} - ${{ matrix.uwp-package-type }}'
-    env:
-      TEMPLATE_PATH: ''
-      UNITY_PROJECT_PATH: '' # set by unity-setup action
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -30,33 +27,24 @@ jobs:
       - run: 'npm install -g openupm-cli'
         # Installs the Unity Editor based on your project version text file
         # sets -> env.UNITY_EDITOR_PATH
-        # sets -> env.UNITY_PROJECT_PATH
       - uses: RageAgainstThePixel/unity-setup@main
         with:
           version-file: 'None'
           build-targets: ${{ matrix.build-target }}
           unity-version: ${{ matrix.unity-version }}
-      - name: Find Unity Template Path
-        run: |
-          $rootPath = $env:UNITY_EDITOR_PATH -replace "Editor.*", ""
-          Write-Host "ROOT_PATH=$rootPath"
-          $templatePath = Get-ChildItem -Recurse -Filter "com.unity.template.3d*.tgz" -Path $rootPath | Select-Object -First 1 | Select-Object -ExpandProperty FullName
-          Write-Host "TEMPLATE_PATH=$templatePath"
-          echo "TEMPLATE_PATH=$templatePath" >> $env:GITHUB_ENV
-          $projectPath = "${{ github.workspace }}/Test Project"
-          echo "UNITY_PROJECT_PATH=$projectPath" >> $env:GITHUB_ENV
-        shell: pwsh
         # Activates the installation with the provided credentials
       - uses: RageAgainstThePixel/activate-unity-license@main
         with:
           license: 'Personal'
           username: ${{ secrets.UNITY_USERNAME }}
           password: ${{ secrets.UNITY_PASSWORD }}
-      - uses: RageAgainstThePixel/unity-action@main
-        name: Create Test Project
+      - uses: RageAgainstThePixel/create-unity-project@main
+        id: unity-project
         with:
-          log-name: 'create-test-project'
-          args: '-quit -nographics -batchmode -createProject "${{ env.UNITY_PROJECT_PATH }}" -cloneFromTemplate "${{ env.TEMPLATE_PATH }}"'
+          project-name: Test Project
+      - name: Set Unity Project Path
+        run: echo "UNITY_PROJECT_PATH=${{ steps.unity-project.outputs.project-path }}" >> "$GITHUB_ENV"
+        shell: bash
       - run: 'openupm add com.utilities.buildpipeline'
         name: Add Build Pipeline Package
         working-directory: ${{ env.UNITY_PROJECT_PATH }}
