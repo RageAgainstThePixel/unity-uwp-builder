@@ -19,8 +19,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'schedule' && 'legacy' || inputs.editors || 'unity-6-and-newer' }}
   cancel-in-progress: true
 jobs:
+  changes:
+    permissions:
+      contents: read
+      pull-requests: read
+    # docs-only pull requests skip validation; validate-result still reports for them
+    uses: RageAgainstThePixel/workflows/.github/workflows/detect-changes.yml@main
   setup:
-    if: github.event.pull_request.draft == false
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' && github.event.pull_request.draft == false }}
     permissions:
       contents: read
     # pull requests and pushes test the streams Unity lists; the older editors run monthly or on demand
@@ -43,11 +50,10 @@ jobs:
     with:
       matrix: ${{ toJSON(matrix.jobs.matrix) }}
       allow-security-alert: ${{ needs.setup.outputs.allow-security-alert == 'true' }}
-  # the one required check: row names follow the streams Unity lists, so the ruleset can't name them
-  ci-result:
-    needs: [setup, validate]
-    # skipped with the rest on a draft, rather than green with nothing tested
-    if: ${{ always() && github.event.pull_request.draft != true }}
+  # the one required check: passes when every job passed, or was skipped for a draft or a docs-only change
+  validate-result:
+    needs: [changes, setup, validate]
+    if: always()
     runs-on: ubuntu-slim
     timeout-minutes: 5
     permissions: {}
@@ -56,21 +62,14 @@ jobs:
         shell: bash
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
-          SETUP_RESULT: ${{ needs.setup.result }}
-          VALIDATE_RESULT: ${{ needs.validate.result }}
         run: |
-          echo "Job results: ${RESULTS}"
+          echo "results: ${RESULTS}"
           for result in ${RESULTS}; do
-            if [ "${result}" = "failure" ] || [ "${result}" = "cancelled" ]; then
-              echo "::error::At least one job ended with ${result}"
-              exit 1
-            fi
+            case "${result}" in
+              success|skipped) ;;
+              *) exit 1 ;;
+            esac
           done
-          # the matrix must actually have run: an empty or skipped matrix would otherwise pass with no tests
-          if [ "${SETUP_RESULT}" != "success" ] || [ "${VALIDATE_RESULT}" != "success" ]; then
-            echo "::error::No Unity rows ran (setup: ${SETUP_RESULT}, validate: ${VALIDATE_RESULT})"
-            exit 1
-          fi
   timeline:
     needs: [setup, validate]
     if: always()
