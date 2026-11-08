@@ -43,8 +43,8 @@ jobs:
         with:
           project-name: Test Project
       - name: Set Unity Project Path
-        run: echo "UNITY_PROJECT_PATH=${{ steps.unity-project.outputs.project-path }}" >> "$GITHUB_ENV"
-        shell: bash
+        run: echo "UNITY_PROJECT_PATH=${{ steps.unity-project.outputs.project-path }}" >> $env:GITHUB_ENV
+        shell: pwsh
       - run: 'openupm add com.utilities.buildpipeline'
         name: Add Build Pipeline Package
         working-directory: ${{ env.UNITY_PROJECT_PATH }}
