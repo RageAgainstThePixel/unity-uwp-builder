@@ -43,6 +43,34 @@ jobs:
     with:
       matrix: ${{ toJSON(matrix.jobs.matrix) }}
       allow-security-alert: ${{ needs.setup.outputs.allow-security-alert == 'true' }}
+  # the one required check: row names follow the streams Unity lists, so the ruleset can't name them
+  ci-result:
+    needs: [setup, validate]
+    # skipped with the rest on a draft, rather than green with nothing tested
+    if: ${{ always() && github.event.pull_request.draft != true }}
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Check results
+        shell: bash
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+          SETUP_RESULT: ${{ needs.setup.result }}
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+        run: |
+          echo "Job results: ${RESULTS}"
+          for result in ${RESULTS}; do
+            if [ "${result}" = "failure" ] || [ "${result}" = "cancelled" ]; then
+              echo "::error::At least one job ended with ${result}"
+              exit 1
+            fi
+          done
+          # the matrix must actually have run: an empty or skipped matrix would otherwise pass with no tests
+          if [ "${SETUP_RESULT}" != "success" ] || [ "${VALIDATE_RESULT}" != "success" ]; then
+            echo "::error::No Unity rows ran (setup: ${SETUP_RESULT}, validate: ${VALIDATE_RESULT})"
+            exit 1
+          fi
   timeline:
     needs: [setup, validate]
     if: always()
