@@ -31,17 +31,22 @@ jobs:
         id: uwp-build
         with:
           project-path: path/to/your/build/output/directory
-          architecture: ARM64
+          platform: ARM64
           package-type: upload
+          # store-association-path: path/to/Package.StoreAssociation.xml
+          # certificate-path: path/to/your/certificate.pfx
+          # certificate-password: ${{ secrets.UWP_CERTIFICATE_PASSWORD }}
+          # windows-sdk-version: 10.0.26100.0
 
       - name: print outputs
         shell: bash
         env:
           EXECUTABLE: ${{ steps.uwp-build.outputs.executable }}
+          BUNDLES: ${{ steps.uwp-build.outputs.bundles }}
           OUTPUT_DIRECTORY: ${{ steps.uwp-build.outputs.output-directory }}
         run: |
           echo "Executable: ${EXECUTABLE}"
-          echo "Output Directory: ${OUTPUT_DIRECTORY}"
+          echo "Bundles: ${BUNDLES}"
           ls -R "${OUTPUT_DIRECTORY}"
 ```
 
@@ -50,19 +55,27 @@ jobs:
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `project-path` | The directory that contains the exported visual studio project from Unity, or the path to its `.sln` file. The first `.sln` found under the directory is built. | true | |
-| `configuration` | The configuration to use when building the visual studio project. | false | `Master` |
-| `architecture` | The architecture to use when building the visual studio project. Can be: `x86`, `x64`, `ARM`, or `ARM64`. | false | `ARM64` |
-| `additional-args` | Additional arguments to pass to the msbuild command, separated by spaces. | false | |
+| `configuration` | The configuration to use when building the visual studio project. Can be `Master`, `Release`, or `Debug`. | false | `Master` |
+| `platform` | The platform to use when building the visual studio project. Can be: `x86`, `x64`, `ARM`, or `ARM64`. | false | The platforms defined in the visual studio project |
 | `package-type` | The type of package to generate. Can be: `sideload` or `upload`. | false | `sideload` |
-| `certificate-path` | The path to the `.pfx` certificate, or a directory to search for one, used to sign a `sideload` package. | false | The first `.pfx` in the exported project, such as the Unity generated test certificate |
+| `certificate-path` | The path to the `.pfx` certificate, or a directory to search for one, used to sign the package. | false | The Unity generated test certificate in the exported project |
+| `certificate-password` | The password for the certificate. | When your certificate is password protected. | |
+| `windows-sdk-version` | The Windows SDK version to build with, such as `10.0.22621.0`. Falls back to the latest installed SDK, with a warning, when the runner doesn't have it. | false | The latest Windows SDK on the runner |
+| `additional-args` | Additional arguments to pass to the msbuild command, separated by spaces. | false | |
+| `store-association-path` | The path to the `Package.StoreAssociation.xml` file that associates the package with your Microsoft Store app. Use with `package-type: upload`. | false | |
 
-When the exported project asks for a platform toolset the runner's Visual Studio doesn't have, the newest installed UWP toolset is used instead.
+The deprecated `architecture` input still works; use `platform` instead.
+
+When `store-association-path` is set, the action copies the file next to the app project, matches the `Package.appxmanifest` identity and display name to it, and bundles the architectures it lists.
+
+With Windows SDK `10.0.26100.0` or newer, the action removes the `WindowsMobile` extension SDK reference from the exported projects, since those SDKs no longer ship it. When the exported project asks for a platform toolset the runner's Visual Studio doesn't have, the newest installed UWP toolset is used instead.
 
 ### Outputs
 
 | Output | Description |
 |--------|-------------|
-| `executable` | The path to the generated package: the `.appxupload`/`.msixupload` for `upload`, or the `.appx`/`.msix` for `sideload`. |
+| `executable` | The path to the main generated package: the `.appxupload`/`.msixupload` for `upload`, or the bundle or package for `sideload`. |
+| `bundles` | A JSON array of the paths to every generated package and bundle. |
 | `output-directory` | The path to the `AppPackages` output directory. |
 
 The action runs on Node 24, so self-hosted runners need [actions/runner](https://github.com/actions/runner) v2.327.1 or newer.

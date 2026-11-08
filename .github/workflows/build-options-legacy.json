@@ -11,12 +11,47 @@
     {
       "os": "windows-latest",
       "build-target": "WSAPlayer",
-      "uwp-package-type": "sideload"
+      "uwp-arch": "x64",
+      "uwp-subtarget": "PC",
+      "uwp-package-type": "sideload",
+      "certificate-type": "default",
+      "windows-sdk-version": ""
     },
     {
       "os": "windows-latest",
       "build-target": "WSAPlayer",
-      "uwp-package-type": "upload"
+      "uwp-arch": "x64",
+      "uwp-subtarget": "PC",
+      "uwp-package-type": "sideload",
+      "certificate-type": "custom",
+      "windows-sdk-version": "10.0.22621.0"
+    },
+    {
+      "os": "windows-latest",
+      "build-target": "WSAPlayer",
+      "uwp-arch": "ARM64",
+      "uwp-subtarget": "HoloLens",
+      "uwp-package-type": "sideload",
+      "certificate-type": "default",
+      "windows-sdk-version": "10.0.26100.0"
+    },
+    {
+      "os": "windows-latest",
+      "build-target": "WSAPlayer",
+      "uwp-arch": "x64",
+      "uwp-subtarget": "PC",
+      "uwp-package-type": "upload",
+      "certificate-type": "default",
+      "windows-sdk-version": ""
+    },
+    {
+      "os": "windows-latest",
+      "build-target": "WSAPlayer",
+      "uwp-arch": "ARM64",
+      "uwp-subtarget": "HoloLens",
+      "uwp-package-type": "upload",
+      "certificate-type": "default",
+      "windows-sdk-version": "10.0.26100.0"
     }
   ]
 }

@@ -31434,7 +31434,7 @@ function exportVariable(name, val) {
  * ```
  */
 function core_setSecret(secret) {
-    issueCommand('add-mask', {}, secret);
+    command_issueCommand('add-mask', {}, secret);
 }
 /**
  * Prepends inputPath to the PATH (for this action and future actions)
@@ -31597,13 +31597,13 @@ function info(message) {
  * @param name The name of the output group
  */
 function startGroup(name) {
-    issue('group', name);
+    command_issue('group', name);
 }
 /**
  * End an output group.
  */
 function endGroup() {
-    issue('endgroup');
+    command_issue('endgroup');
 }
 /**
  * Wrap an asynchronous function call in a group.
@@ -35542,105 +35542,160 @@ const main = async () => {
             throw new Error(`This action can only run on Windows runner.`);
         }
         let projectPath = getInput(`project-path`, { required: true });
-        core_debug(`project-path: "${projectPath}"`);
+        info(`project-path: "${projectPath}"`);
         if (!projectPath.endsWith(`.sln`)) {
             projectPath = external_path_namespaceObject.join(projectPath, `**/*.sln`);
         }
-        let buildPath = projectPath;
+        let solution = projectPath;
         if (projectPath.includes('*')) {
             const globber = await create(projectPath, { matchDirectories: false });
             const files = await globber.glob();
-            core_debug(`Found solution files:`);
-            files.forEach(file => core_debug(`  - "${file}"`));
+            startGroup(`Found solution files:`);
+            files.forEach(file => info(`  - "${file}"`));
+            endGroup();
             if (files.length === 0) {
                 throw new Error(`No solution file found.`);
             }
-            buildPath = files[0];
+            solution = files[0];
         }
-        info(`Building ${buildPath}...`);
-        projectPath = external_path_namespaceObject.dirname(buildPath);
+        info(`Building ${solution}...`);
+        projectPath = external_path_namespaceObject.dirname(solution);
         try {
-            await external_fs_namespaceObject.promises.access(buildPath, external_fs_namespaceObject.constants.R_OK);
+            await external_fs_namespaceObject.promises.access(solution, external_fs_namespaceObject.constants.R_OK);
         }
         catch (error) {
-            throw new Error(`Solution file not found: "${buildPath}"`);
+            throw new Error(`Solution file not found: "${solution}"`);
         }
         const appPackagesPath = external_path_namespaceObject.join(projectPath, `AppPackages`);
         if (external_fs_namespaceObject.existsSync(appPackagesPath)) {
             info(`Cleaning AppPackages directory: ${appPackagesPath}...`);
             await external_fs_namespaceObject.promises.rm(appPackagesPath, { recursive: true, force: true });
         }
-        let projectName = external_path_namespaceObject.basename(buildPath, `.sln`);
-        core_debug(`projectName: "${projectName}"`);
+        const vcxprojGlobber = await create(external_path_namespaceObject.join(projectPath, `**/*.vcxproj`), { matchDirectories: false });
+        const vcxprojFiles = await vcxprojGlobber.glob();
+        if (vcxprojFiles.length === 0) {
+            throw new Error(`No VCXProj file found in: "${projectPath}"`);
+        }
+        startGroup(`Found VCXProj files:`);
+        vcxprojFiles.forEach(file => info(`  - "${file}"`));
+        endGroup();
+        const vcxprojPath = vcxprojFiles.find(file => !external_path_namespaceObject.basename(file).includes(`Il2CppOutputProject`));
+        if (!vcxprojPath) {
+            throw new Error(`No suitable VCXProj file found that does not contain 'Il2CppOutputProject'.`);
+        }
+        info(`Using VCXProj: ${vcxprojPath}`);
         const configuration = getInput(`configuration`, { required: true });
+        info(`configuration: "${configuration}"`);
         const buildArgs = [
             `/t:Build`,
+            `/p:AppxBundle=Always`,
             `/p:Configuration=${configuration}`
         ];
-        const architecture = getInput(`architecture`);
-        if (architecture) {
-            core_debug(`architecture: "${architecture}"`);
-            buildArgs.push(`/p:Platform=${architecture}`);
+        const platform = getInput(`platform`) || getInput(`architecture`);
+        if (platform) {
+            info(`platform: "${platform}"`);
+            buildArgs.push(`/p:Platform=${platform}`);
         }
         const packageType = getInput(`package-type`, { required: true });
-        core_debug(`package-type: "${packageType}"`);
+        info(`package-type: "${packageType}"`);
         switch (packageType) {
             case `upload`:
-                buildArgs.push(`/p:UapAppxPackageBuildMode=StoreUpload`, `/p:GenerateAppInstallerFile=false`, `/p:AppxPackageSigningEnabled=false`, `/p:BuildAppxUploadPackageForUap=true`);
+                buildArgs.push(`/p:UapAppxPackageBuildMode=StoreUpload`);
                 break;
             case `sideload`:
-                const certificatePath = await getCertificatePath(projectPath);
-                const thumbprint = await getCertificateThumbprint(certificatePath);
-                buildArgs.push(`/p:UapAppxPackageBuildMode=SideloadOnly`, `/p:AppxPackageSigningEnabled=true`, `/p:PackageCertificateThumbprint=${thumbprint}`, `/p:PackageCertificateKeyFile="${certificatePath}"`);
+                buildArgs.push(`/p:UapAppxPackageBuildMode=SideloadOnly`);
                 break;
             default:
                 throw new Error(`Invalid package type: "${packageType}"`);
         }
-        const platformToolset = await getPlatformToolsetOverride(projectPath, architecture);
+        const certificatePath = await getCertificatePath(projectPath);
+        buildArgs.push(`/p:GenerateTestCertificate=false`, `/p:AppxPackageSigningEnabled=true`, `/p:PackageCertificateThumbprint=""`, `/p:PackageCertificateKeyFile="${certificatePath}"`);
+        const certificatePassword = getInput(`certificate-password`);
+        if (certificatePassword) {
+            core_setSecret(certificatePassword);
+            buildArgs.push(`/p:PackageCertificatePassword="${certificatePassword}"`);
+        }
+        const storeAssociationPath = getInput(`store-association-path`);
+        if (storeAssociationPath) {
+            info(`store-association-path: "${storeAssociationPath}"`);
+            await copyAndEnsureStoreAssociation(vcxprojPath, storeAssociationPath);
+        }
+        const specifiedSDKVersion = getInput(`windows-sdk-version`);
+        let windowsSDKVersion = null;
+        if (specifiedSDKVersion) {
+            if (await isWindowsSDKVersionAvailable(specifiedSDKVersion)) {
+                windowsSDKVersion = specifiedSDKVersion;
+                info(`Using specified Windows SDK version: ${windowsSDKVersion}`);
+            }
+            else {
+                warning(`Specified Windows SDK version ${specifiedSDKVersion} not found. Falling back to auto-detection.`);
+                windowsSDKVersion = await getAvailableWindowsSDKVersion();
+            }
+        }
+        else {
+            windowsSDKVersion = await getAvailableWindowsSDKVersion();
+            if (windowsSDKVersion) {
+                info(`Auto-detected Windows SDK version: ${windowsSDKVersion}`);
+            }
+        }
+        if (windowsSDKVersion) {
+            buildArgs.push(`/p:WindowsTargetPlatformVersion=${windowsSDKVersion}`);
+            const match = windowsSDKVersion.match(/^10\.0\.(\d+)\.\d+$/);
+            if (match && parseInt(match[1], 10) >= 26100) {
+                startGroup(`Removing WindowsMobile SDKReference from all VCXProj files...`);
+                try {
+                    for (const file of vcxprojFiles) {
+                        await removeWindowsMobileSDKReference(file);
+                    }
+                }
+                finally {
+                    endGroup();
+                }
+            }
+        }
+        const platformToolset = await getPlatformToolsetOverride(projectPath, platform);
         if (platformToolset) {
             buildArgs.push(`/p:PlatformToolset=${platformToolset}`);
         }
         const additionalArgs = getInput(`additional-args`);
         if (additionalArgs) {
-            core_debug(`additional-args: "${additionalArgs}"`);
-            buildArgs.push(...additionalArgs.split(` `));
+            info(`additional-args: "${additionalArgs}"`);
+            buildArgs.push(...additionalArgs.split(` `).filter(arg => arg.length > 0));
         }
         if (!isDebug()) {
             buildArgs.push(`/verbosity:minimal`);
         }
-        await exec_exec(`msbuild`, [`"${buildPath}"`, ...buildArgs], {
+        startGroup(`Final MSBuild arguments:`);
+        buildArgs.forEach(arg => info(`  ${arg}`));
+        endGroup();
+        await exec_exec(`msbuild`, [`"${solution}"`, ...buildArgs], {
             windowsVerbatimArguments: true
         });
-        const outputDirectory = external_path_namespaceObject.join(projectPath, `AppPackages`);
-        core_debug(`outputDirectory: ${outputDirectory}`);
+        const outputDirectory = await findAppPackagesDirectory(projectPath);
+        info(`output-directory: ${outputDirectory}`);
         setOutput(`output-directory`, outputDirectory);
-        const patterns = [
-            `${outputDirectory}/**/*.appx`,
-            `${outputDirectory}/**/*.msix`,
-            `${outputDirectory}/**/*.appxbundle`,
-            `${outputDirectory}/**/*.msixbundle`,
-            `${outputDirectory}/**/*.appxupload`,
-            `${outputDirectory}/**/*.msixupload`,
-            `!${outputDirectory}/**/dependencies/**`
-        ];
-        const executableGlobber = await create(patterns.join(`\n`));
-        const executables = await executableGlobber.glob();
-        if (executables.length === 0) {
-            warning(`No executables found.`);
-            return;
+        const allGlobber = await create(external_path_namespaceObject.join(outputDirectory, `**/*`));
+        const allFiles = await allGlobber.glob();
+        startGroup(`All files found in output directory:`);
+        allFiles.forEach(file => info(`  - "${file}"`));
+        endGroup();
+        const bundleExts = [`appxupload`, `msixupload`, `appxbundle`, `msixbundle`, `appx`, `msix`];
+        const bundles = allFiles.filter(file => bundleExts.some(ext => file.toLowerCase().endsWith(`.${ext}`)) &&
+            !file.split(external_path_namespaceObject.sep).some(part => part.toLowerCase() === `dependencies`));
+        if (bundles.length === 0) {
+            throw new Error(`No bundle files found in output directory: "${outputDirectory}"!`);
         }
-        core_debug(`Found executables:`);
-        executables.forEach(executable => core_debug(`  - "${executable}"`));
-        let executable;
-        switch (packageType) {
-            case `upload`:
-                executable = executables.find(file => file.endsWith(`.appxupload`) || file.endsWith(`.msixupload`));
-                break;
-            case `sideload`:
-                executable = executables.find(file => file.endsWith(`.appx`) || file.endsWith(`.msix`));
-                break;
-        }
-        core_debug(`Found executable: "${executable}"`);
+        startGroup(`Found bundles:`);
+        bundles.forEach(bundle => info(`  - "${bundle}"`));
+        endGroup();
+        setOutput(`bundles`, JSON.stringify(bundles));
+        const executableExts = packageType === `upload`
+            ? [`.appxupload`, `.msixupload`]
+            : [`.appxbundle`, `.msixbundle`, `.appx`, `.msix`];
+        const executable = executableExts
+            .map(ext => bundles.find(bundle => bundle.toLowerCase().endsWith(ext)))
+            .find(bundle => bundle !== undefined);
+        info(`executable: ${executable}`);
         setOutput(`executable`, executable);
     }
     catch (error) {
@@ -35648,31 +35703,209 @@ const main = async () => {
     }
 };
 main();
+async function findAppPackagesDirectory(projectPath) {
+    const globber = await create(external_path_namespaceObject.join(projectPath, `**`, `AppPackages`), { matchDirectories: true, implicitDescendants: false });
+    const directories = await globber.glob();
+    const outputDirectory = directories.find(directory => external_fs_namespaceObject.statSync(directory).isDirectory());
+    if (!outputDirectory) {
+        throw new Error(`AppPackages directory not found.`);
+    }
+    return outputDirectory;
+}
 async function getCertificatePath(projectPath) {
-    let certificatePath = getInput(`certificate-path`) || `${projectPath}/**/*.pfx`;
-    core_debug(`certificatePath: "${certificatePath}"`);
+    let certificatePath = getInput(`certificate-path`).trim() || `${projectPath}/**/*.pfx`;
+    info(`certificate-path: "${certificatePath}"`);
     if (!certificatePath.endsWith(`.pfx`)) {
         certificatePath = external_path_namespaceObject.join(certificatePath, `**/*.pfx`);
     }
     if (certificatePath.includes(`*`)) {
         const certificateGlobber = await create(certificatePath);
         const certificateFiles = await certificateGlobber.glob();
-        core_debug(`Found certificate files:`);
-        certificateFiles.forEach(file => core_debug(`  - "${file}"`));
+        info(`Found certificate files:`);
+        certificateFiles.forEach(file => info(`  - "${file}"`));
         if (certificateFiles.length === 0) {
-            throw new Error(`No certificate file found: "${certificatePath}"`);
+            throw new Error(`No certificate file found: "${certificatePath}". Make sure Unity generated a test certificate or provide a custom certificate path.`);
         }
-        certificatePath = certificateFiles[0];
+        const unityCertificate = certificateFiles.find(file => file.includes(`_TemporaryKey.pfx`) || file.includes(`TestCertificate.pfx`));
+        certificatePath = unityCertificate || certificateFiles[0];
     }
     try {
         await external_fs_namespaceObject.promises.access(certificatePath, external_fs_namespaceObject.constants.R_OK);
+        const stat = await external_fs_namespaceObject.promises.stat(certificatePath);
+        if (!stat.isFile()) {
+            throw new Error(`Certificate path is not a valid file: "${certificatePath}"`);
+        }
     }
     catch (error) {
-        throw new Error(`Certificate file not found: "${certificatePath}"`);
+        throw new Error(`Certificate file not found: "${certificatePath}". Make sure the certificate exists and is readable.`);
     }
+    info(`Using certificate: ${certificatePath}`);
     return certificatePath;
 }
-async function getPlatformToolsetOverride(projectPath, architecture) {
+async function copyAndEnsureStoreAssociation(vcxprojPath, sourcePath) {
+    const packageStoreAssociationFilePath = external_path_namespaceObject.join(external_path_namespaceObject.dirname(vcxprojPath), `Package.StoreAssociation.xml`);
+    await external_fs_namespaceObject.promises.copyFile(sourcePath, packageStoreAssociationFilePath);
+    let vcxprojFileContent = await external_fs_namespaceObject.promises.readFile(vcxprojPath, `utf8`);
+    if (!vcxprojFileContent.includes(`Package.StoreAssociation.xml`)) {
+        info(`Package.StoreAssociation.xml not referenced in vcxproj, updating...`);
+        const itemGroup = `  <ItemGroup>\n    <None Include="Package.StoreAssociation.xml" />\n  </ItemGroup>\n`;
+        vcxprojFileContent = vcxprojFileContent.replace(`</Project>`, `${itemGroup}</Project>`);
+        await external_fs_namespaceObject.promises.writeFile(vcxprojPath, vcxprojFileContent, `utf8`);
+        info(`Updated ${vcxprojPath} to include StoreAssociationFile reference.`);
+    }
+    const appxManifestPath = external_path_namespaceObject.join(external_path_namespaceObject.dirname(vcxprojPath), `Package.appxmanifest`);
+    try {
+        const storeAssociationContent = await external_fs_namespaceObject.promises.readFile(packageStoreAssociationFilePath, `utf8`);
+        const nameMatch = /<MainPackageIdentityName>([^<]+)<\/MainPackageIdentityName>/.exec(storeAssociationContent);
+        const publisherMatch = /<Publisher>([^<]+)<\/Publisher>/.exec(storeAssociationContent);
+        let reservedNameMatch = null;
+        const reservedNamesBlock = /<ReservedNames>([\s\S]*?)<\/ReservedNames>/.exec(storeAssociationContent);
+        if (reservedNamesBlock) {
+            reservedNameMatch = /<ReservedName>([^<]+)<\/ReservedName>/.exec(reservedNamesBlock[1]);
+        }
+        const displayNameMatch = /<DisplayName>([^<]+)<\/DisplayName>/.exec(storeAssociationContent);
+        if (nameMatch && publisherMatch) {
+            const name = nameMatch[1];
+            const publisher = publisherMatch[1];
+            const displayName = reservedNameMatch ? reservedNameMatch[1] : (displayNameMatch ? displayNameMatch[1] : name);
+            let appxManifestContent = await external_fs_namespaceObject.promises.readFile(appxManifestPath, `utf8`);
+            appxManifestContent = appxManifestContent.replace(/<Identity Name="([^"]+)" Publisher="([^"]+)" Version="([^"]+)" \/>/, (_match, _oldName, _oldPublisher, version) => `<Identity Name="${name}" Publisher="${publisher}" Version="${version}" />`);
+            appxManifestContent = appxManifestContent.replace(/(<Properties[\s\S]*?<DisplayName>)([\s\S]*?)(<\/DisplayName>)/, (_match, before, _oldDisplayName, after) => `${before}${displayName}${after}`);
+            await external_fs_namespaceObject.promises.writeFile(appxManifestPath, appxManifestContent, `utf8`);
+            info(`Updated Package.appxmanifest Identity with Name and Publisher from StoreAssociationFile.`);
+            info(`Updated Package.appxmanifest DisplayName to: ${displayName}`);
+        }
+        else {
+            warning(`Could not find MainPackageIdentityName or Publisher in StoreAssociationFile.`);
+        }
+    }
+    catch (error) {
+        throw new Error(`Failed to copy StoreAssociationFile:\n${error}`);
+    }
+    try {
+        const appxManifestContent = await external_fs_namespaceObject.promises.readFile(appxManifestPath, `utf8`);
+        const match = /<Identity Name="([^"]+)" Publisher="([^"]+)" Version="([^"]+)" \/>/.exec(appxManifestContent);
+        if (match) {
+            const version = match[3];
+            let storeAssociationContent = await external_fs_namespaceObject.promises.readFile(packageStoreAssociationFilePath, `utf8`);
+            storeAssociationContent = storeAssociationContent.replace(/<PackageMaxArchitectureVersion>[^<]+<\/PackageMaxArchitectureVersion>/g, `<PackageMaxArchitectureVersion>${version}</PackageMaxArchitectureVersion>`);
+            await external_fs_namespaceObject.promises.writeFile(packageStoreAssociationFilePath, storeAssociationContent, `utf8`);
+            info(`Updated all PackageMaxArchitectureVersion tags in ${packageStoreAssociationFilePath} with Version from Package.appxmanifest.`);
+        }
+        else {
+            warning(`No Identity found in Package.appxmanifest.`);
+        }
+    }
+    catch (error) {
+        throw new Error(`Failed to update StoreAssociationFile with Version from Package.appxmanifest:\n${error}`);
+    }
+    try {
+        const storeAssociationContent = await external_fs_namespaceObject.promises.readFile(packageStoreAssociationFilePath, `utf8`);
+        const archRegex = /<PackageArchitecture>([^<]+)<\/PackageArchitecture>/gi;
+        const architectures = [];
+        let archMatch;
+        while ((archMatch = archRegex.exec(storeAssociationContent)) !== null) {
+            architectures.push(archMatch[1]);
+        }
+        if (architectures.length > 0) {
+            const archMap = {
+                'x86': 'x86',
+                'x64': 'x64',
+                'arm': 'ARM',
+                'arm64': 'ARM64'
+            };
+            const msbuildArchs = [...new Set(architectures.map(arch => archMap[arch.toLowerCase()] || arch))];
+            const appxBundlePlatformsValue = msbuildArchs.join(`|`);
+            let vcxprojContent = await external_fs_namespaceObject.promises.readFile(vcxprojPath, `utf8`);
+            if (vcxprojContent.includes(`<AppxBundlePlatforms>`)) {
+                vcxprojContent = vcxprojContent.replace(/<AppxBundlePlatforms>[^<]+<\/AppxBundlePlatforms>/, `<AppxBundlePlatforms>${appxBundlePlatformsValue}</AppxBundlePlatforms>`);
+            }
+            else {
+                vcxprojContent = vcxprojContent.replace(/(<PropertyGroup[^>]*>)/, `$1\n    <AppxBundlePlatforms>${appxBundlePlatformsValue}</AppxBundlePlatforms>`);
+            }
+            await external_fs_namespaceObject.promises.writeFile(vcxprojPath, vcxprojContent, `utf8`);
+            info(`Set AppxBundlePlatforms in ${vcxprojPath} to: ${appxBundlePlatformsValue}`);
+        }
+        else {
+            warning(`No <PackageArchitecture> tags found in StoreAssociationFile. AppxBundlePlatforms not set.`);
+        }
+    }
+    catch (error) {
+        throw new Error(`Failed to set AppxBundlePlatforms in vcxproj:\n${error}`);
+    }
+    for (const file of [vcxprojPath, packageStoreAssociationFilePath, appxManifestPath]) {
+        startGroup(`--- ${file} file contents ---`);
+        info(await external_fs_namespaceObject.promises.readFile(file, `utf8`));
+        endGroup();
+    }
+}
+const windowsKitPaths = [
+    `C:\\Program Files (x86)\\Windows Kits\\10\\Include`,
+    `C:\\Program Files\\Windows Kits\\10\\Include`
+];
+async function isWindowsSDKVersionAvailable(version) {
+    for (const basePath of windowsKitPaths) {
+        const versionPath = external_path_namespaceObject.join(basePath, version);
+        try {
+            await external_fs_namespaceObject.promises.access(versionPath, external_fs_namespaceObject.constants.R_OK);
+            info(`Found Windows SDK version ${version} at: ${versionPath}`);
+            return true;
+        }
+        catch (error) {
+            continue;
+        }
+    }
+    info(`Windows SDK version ${version} not found in standard locations`);
+    return false;
+}
+async function getAvailableWindowsSDKVersion() {
+    const allVersions = [];
+    for (const basePath of windowsKitPaths) {
+        try {
+            const entries = await external_fs_namespaceObject.promises.readdir(basePath);
+            const versions = entries.filter(entry => /^10\.0\.\d+\.\d+$/.test(entry));
+            allVersions.push(...versions);
+            info(`Found Windows SDK versions in ${basePath}:`);
+            versions.forEach(version => info(`  - ${version}`));
+        }
+        catch (error) {
+            info(`Path not accessible: ${basePath}`);
+        }
+    }
+    if (allVersions.length === 0) {
+        warning(`No Windows SDK versions found in standard installation paths. Build may fail if Unity references an unavailable SDK version.`);
+        return null;
+    }
+    const uniqueVersions = [...new Set(allVersions)].sort((a, b) => {
+        const aParts = a.split(`.`).map(Number);
+        const bParts = b.split(`.`).map(Number);
+        for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+            const diff = (bParts[i] || 0) - (aParts[i] || 0);
+            if (diff !== 0) {
+                return diff;
+            }
+        }
+        return 0;
+    });
+    return uniqueVersions[0];
+}
+async function removeWindowsMobileSDKReference(vcxprojPath) {
+    try {
+        const vcxprojContent = await external_fs_namespaceObject.promises.readFile(vcxprojPath, `utf8`);
+        const updatedContent = vcxprojContent.replace(/<SDKReference\s+Include=["']WindowsMobile[^"']*["'][^>]*\/>|<SDKReference\s+Include=["']WindowsMobile[^"']*["'][^>]*>[\s\S]*?<\/SDKReference>/gi, ``);
+        if (vcxprojContent !== updatedContent) {
+            await external_fs_namespaceObject.promises.writeFile(vcxprojPath, updatedContent, `utf8`);
+            info(`Removed WindowsMobile SDKReference from ${vcxprojPath}`);
+        }
+        else {
+            info(`No WindowsMobile SDKReference found in ${vcxprojPath}`);
+        }
+    }
+    catch (error) {
+        throw new Error(`Failed to remove WindowsMobile SDKReference: ${error.message}`);
+    }
+}
+async function getPlatformToolsetOverride(projectPath, platform) {
     const projectGlobber = await create(`${projectPath}/**/*.vcxproj`);
     const projectFiles = await projectGlobber.glob();
     const requiredToolsets = new Set();
@@ -35686,7 +35919,7 @@ async function getPlatformToolsetOverride(projectPath, architecture) {
         return undefined;
     }
     core_debug(`Required platform toolsets: ${[...requiredToolsets].join(`, `)}`);
-    const installedToolsets = await getInstalledUwpToolsets(architecture);
+    const installedToolsets = await getInstalledUwpToolsets(platform);
     if (installedToolsets.length === 0) {
         core_debug(`Unable to determine installed UWP platform toolsets.`);
         return undefined;
@@ -35699,7 +35932,7 @@ async function getPlatformToolsetOverride(projectPath, architecture) {
     info(`Platform toolset ${[...requiredToolsets].join(`, `)} is not installed, using ${latestToolset} instead.`);
     return latestToolset;
 }
-async function getInstalledUwpToolsets(architecture) {
+async function getInstalledUwpToolsets(platform) {
     let installationPath = ``;
     const vswhere = external_path_namespaceObject.join(process.env[`ProgramFiles(x86)`] || `C:\\Program Files (x86)`, `Microsoft Visual Studio`, `Installer`, `vswhere.exe`);
     try {
@@ -35719,23 +35952,10 @@ async function getInstalledUwpToolsets(architecture) {
     if (!installationPath) {
         return [];
     }
-    const platform = architecture || `*`;
-    const toolsetGlobber = await create(`${installationPath}/MSBuild/Microsoft/VC/*/Application Type/Windows Store/10.0/Platforms/${platform}/PlatformToolsets/v*`, { matchDirectories: true, implicitDescendants: false });
+    const toolsetGlobber = await create(`${installationPath}/MSBuild/Microsoft/VC/*/Application Type/Windows Store/10.0/Platforms/${platform || `*`}/PlatformToolsets/v*`, { matchDirectories: true, implicitDescendants: false });
     const toolsetPaths = await toolsetGlobber.glob();
     const toolsets = [...new Set(toolsetPaths.map(toolsetPath => external_path_namespaceObject.basename(toolsetPath)))];
     return toolsets.sort((a, b) => parseInt(a.substring(1)) - parseInt(b.substring(1)));
-}
-async function getCertificateThumbprint(certificatePath) {
-    let thumbprint = ``;
-    await exec_exec(`powershell`, [`-NoProfile`, `-Command`, `(Get-PfxCertificate -FilePath $env:UWP_CERTIFICATE_PATH).Thumbprint`], {
-        env: { ...process.env, UWP_CERTIFICATE_PATH: certificatePath },
-        listeners: {
-            stdout: (data) => {
-                thumbprint += data.toString();
-            }
-        }
-    });
-    return thumbprint.trim();
 }
 
 })();
